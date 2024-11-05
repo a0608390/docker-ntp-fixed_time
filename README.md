@@ -66,6 +66,12 @@ $> docker compose up -d ntp
 $> docker compose logs ntp
 ```
 
+### Setting fixed time for system clock
+
+容器启动时将时间设置为 2024年11月5日 10:00:00，则在启动容器时设置环境变量：
+```
+FIXED_TIME="2024-11-05 10:00:00"
+```
 
 ### With Docker Swarm
 
@@ -276,10 +282,3 @@ the running ntp container on your container host.
 
 ---
 <a href="https://www.buymeacoffee.com/cturra" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-yellow.png" alt="Buy Me A Coffee" height="41" width="174"></a>
-
-## Setting fixed time for system clock
-容器启动时将时间设置为 2024年11月5日 10:00:00，则在启动容器时设置环境变量：
-'''
-FIXED_TIME="2024-11-05 10:00:00"
-'''
-
