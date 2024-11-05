@@ -3,20 +3,27 @@
 DEFAULT_NTP="time.cloudflare.com"
 CHRONY_CONF_FILE="/etc/chrony/chrony.conf"
 
-# confirm correct permissions on chrony run directory
+# 如果提供了固定时间，将其设置为系统时间
+if [ -n "${FIXED_TIME}" ]; then
+  echo "Setting system time to fixed value: ${FIXED_TIME}"
+  # 使用 date 命令设置系统时间
+  date -s "${FIXED_TIME}"
+fi
+
+# 确认 chrony 运行目录的正确权限
 if [ -d /run/chrony ]; then
   chown -R chrony:chrony /run/chrony
   chmod o-rx /run/chrony
-  # remove previous pid file if it exist
+  # 删除之前存在的 pid 文件（如果有的话）
   rm -f /var/run/chrony/chronyd.pid
 fi
 
-# confirm correct permissions on chrony variable state directory
+# 确认 chrony 变量状态目录的正确权限
 if [ -d /var/lib/chrony ]; then
   chown -R chrony:chrony /var/lib/chrony
 fi
 
-## dynamically populate chrony config file.
+## 动态生成 chrony 配置文件
 {
   echo "# https://github.com/cturra/docker-ntp"
   echo
@@ -27,35 +34,33 @@ fi
 } > ${CHRONY_CONF_FILE}
 
 
-# NTP_SERVERS environment variable is not present, so populate with default server
+# 如果没有设置 NTP_SERVERS 环境变量，则使用默认服务器
 if [ -z "${NTP_SERVERS}" ]; then
   NTP_SERVERS="${DEFAULT_NTP}"
 fi
 
-# LOG_LEVEL environment variable is not present, so populate with chrony default (0)
-# chrony log levels: 0 (informational), 1 (warning), 2 (non-fatal error) and 3 (fatal error)
+# 如果没有设置 LOG_LEVEL 环境变量，则使用 chrony 默认的 0（信息级别）
 if [ -z "${LOG_LEVEL}" ]; then
   LOG_LEVEL=0
 else
-  # confirm log level is between 0-3, since these are the only log levels supported
+  # 确保日志级别在 0-3 之间
   if [ "${LOG_LEVEL}" -gt 3 ]; then
-    # level outside of supported range, let's set to default (0)
+    # 如果超出支持范围，则设置为默认值 0
     LOG_LEVEL=0
   fi
 fi
 
 IFS=","
 for N in $NTP_SERVERS; do
-  # strip any quotes found before or after ntp server
+  # 去除 NTP 服务器地址中的引号
   N_CLEANED=${N//\"}
 
-  # check if ntp server has a 127.0.0.0/8 address (RFC3330) indicating it's
-  # the local system clock
+  # 检查 NTP 服务器是否为本地系统时钟（127.0.0.0/8 地址）
   if [[ "${N_CLEANED}" == "127\."* ]]; then
     echo "server "${N_CLEANED} >> ${CHRONY_CONF_FILE}
     echo "local stratum 10"    >> ${CHRONY_CONF_FILE}
 
-  # found external time servers
+  # 如果是外部时间服务器
   else
     if [[ "${ENABLE_NTS:-false}" = true ]]; then
       echo "server "${N_CLEANED}" iburst nts" >> ${CHRONY_CONF_FILE}
@@ -65,7 +70,7 @@ for N in $NTP_SERVERS; do
   fi
 done
 
-# final bits for the config file
+# 配置文件的最终部分
 {
   echo
   echo "driftfile /var/lib/chrony/chrony.drift"
@@ -77,5 +82,6 @@ done
   echo "allow all"
 } >> ${CHRONY_CONF_FILE}
 
-## startup chronyd in the foreground
+## 启动 chronyd 服务，并传递相应的日志级别
 exec /usr/sbin/chronyd -u chrony -d -x -L ${LOG_LEVEL}
+
